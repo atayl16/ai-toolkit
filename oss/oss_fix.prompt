@@ -1,0 +1,8 @@
+Goal: Implement a minimal FIX that makes the repro test pass.
+Rules:
+- Follow style/lint rules from context.md (Rubocop/ESLint/etc).
+- Keep change small; avoid drive-by refactors.
+- Add/adjust tests; include edge cases.
+- Provide a diff (paths + code) suitable for a PR.
+- Note any migration/compat implications.
+

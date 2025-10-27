@@ -1,0 +1,623 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Colors
+bold() { printf "\033[1m%s\033[0m\n" "$*"; }
+info() { printf "➜ %s\n" "$*"; }
+err()  { printf "\033[31m✗ %s\033[0m\n" "$*" >&2; }
+success() { printf "\033[32m✓ %s\033[0m\n" "$*"; }
+
+# Ensure PATH has our bin
+case ":$PATH:" in *":$HOME/.ai-toolkit/bin:"*) ;; *)
+  export PATH="$HOME/.ai-toolkit/bin:$PATH"
+esac
+
+# Source shell functions
+TOOLKIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=bin/functions.sh
+source "$TOOLKIT_DIR/bin/functions.sh" 2>/dev/null || true
+
+# Helpers
+need() { command -v "$1" >/dev/null 2>&1 || { err "Missing dependency: $1"; exit 1; }; }
+ensure_dir() { mkdir -p "$1"; }
+
+rails_new() {
+  local name="$1"
+  need rails
+  info "Creating Rails app: $name (using SQLite for development)"
+  rails new "$name" --css=tailwind -m "$HOME/.ai-toolkit/rails/ai_rails.rb"
+  (cd "$name" && bin/setup)
+  info "Done. Try: cd $name && just test && scan_here"
+  info "Note: Using SQLite locally. Add PostgreSQL in production if needed."
+}
+
+rails_react_new() {
+  local name="$1"
+  need rails
+  need npm
+  info "Creating Rails API app: $name (using SQLite for development)"
+  rails new "$name" --api -m "$HOME/.ai-toolkit/rails/ai_rails.rb"
+  (cd "$name" && bin/setup)
+  
+  info "Adding React (Vite) in client/..."
+  (cd "$name" && npm create vite@latest client -- --template react-ts && cd client && npm install && npm pkg set name="$name-client")
+  
+  info "Wiring CORS & dev scripts..."
+  (cd "$name" && bundle add rack-cors && ruby -e "p='config/initializers/cors.rb'; File.write(p,%q{
+Rails.application.config.middleware.insert_before 0, Rack::Cors do
+  allow do
+    origins /http:\/\/localhost:\d+/
+    resource '*', headers: :any, methods: [:get,:post,:put,:patch,:delete,:options,:head]
+  end
+end
+}.strip)") || true
+
+  info "Adding ESLint, Prettier, Husky to client/..."
+  (cd "$name/client" && {
+    npm install -D eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin \
+      eslint-plugin-react eslint-plugin-react-hooks eslint-plugin-react-refresh \
+      prettier eslint-config-prettier eslint-plugin-prettier husky
+    
+    cp "$HOME/.ai-toolkit/templates/react/.eslintrc.cjs" .
+    cp "$HOME/.ai-toolkit/templates/react/.prettierrc" .
+    cp "$HOME/.ai-toolkit/templates/react/.editorconfig" .
+    
+    # Update scripts
+    npm pkg set scripts.lint="eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    npm pkg set scripts.lint:fix="eslint . --ext ts,tsx --fix"
+    npm pkg set scripts.format="prettier --write \"src/**/*.{ts,tsx,css}\""
+    npm pkg set scripts.prepare="husky install"
+    
+    # Setup Husky
+    npx husky install
+    mkdir -p .husky
+    cp "$HOME/.ai-toolkit/templates/react/husky-pre-commit" .husky/pre-commit
+    chmod +x .husky/pre-commit
+  })
+  
+  info "Done!"
+  info "Backend: cd $name && just run (port 3000)"
+  info "Frontend: cd $name/client && npm run dev (port 5173)"
+}
+
+jobwizard_new() {
+  local name="$1"
+  info "Creating JobWizard app: $name"
+  
+  # Start with standard Rails app
+  rails_new "$name"
+  
+  (cd "$name" && {
+    info "Adding JobWizard gems..."
+    bundle add prawn httpx nokogiri
+    
+    info "Creating JobWizard structure..."
+    mkdir -p config/job_wizard
+    cp "$HOME/.ai-toolkit/templates/jobwizard/config/profile.yml" config/job_wizard/
+    cp "$HOME/.ai-toolkit/templates/jobwizard/config/experience.yml" config/job_wizard/
+    cp "$HOME/.ai-toolkit/templates/jobwizard/config/rules.yml" config/job_wizard/
+    
+    info "Generating models..."
+    rails g model JobPosting ext_id:string:index company:string title:string location:string \
+      remote:boolean url:string posted_at:datetime source:string description:text \
+      flags:jsonb recently_applied:boolean score:integer
+    
+    rails g model JobSource kind:string company:string slug:string active:boolean
+    
+    info "Running migrations..."
+    bin/rails db:migrate
+    
+    info "Creating service stubs..."
+    mkdir -p app/services/fetchers app/services/job_wizard
+    cat > app/services/fetchers/greenhouse.rb <<'RUBY'
+# Fetcher for Greenhouse job boards
+# TODO: Implement fetch logic
+class Fetchers::Greenhouse
+  def initialize(company_slug)
+    @company_slug = company_slug
+  end
+
+  def fetch_jobs
+    # TODO: Fetch from https://boards-api.greenhouse.io/v1/boards/#{@company_slug}/jobs
+    []
+  end
+end
+RUBY
+
+    cat > app/services/fetchers/lever.rb <<'RUBY'
+# Fetcher for Lever job boards  
+# TODO: Implement fetch logic
+class Fetchers::Lever
+  def initialize(company_slug)
+    @company_slug = company_slug
+  end
+
+  def fetch_jobs
+    # TODO: Fetch from https://api.lever.co/v0/postings/#{@company_slug}
+    []
+  end
+end
+RUBY
+
+    info "Creating rake tasks..."
+    cat > lib/tasks/jobs.rake <<'RUBY'
+namespace :jobs do
+  desc "Fetch jobs from provider (greenhouse|lever) for company slug"
+  task :fetch, [:provider, :slug] => :environment do |t, args|
+    provider = args[:provider]
+    slug = args[:slug]
+    
+    puts "Fetching jobs from #{provider}/#{slug}..."
+    # TODO: Implement fetching logic
+    puts "Done!"
+  end
+
+  desc "Show job board dashboard"
+  task board: :environment do
+    puts "JobWizard Dashboard"
+    puts "=" * 50
+    total = JobPosting.count
+    applied = JobPosting.where(recently_applied: true).count
+    puts "Total jobs: #{total}"
+    puts "Applied: #{applied}"
+    puts "Remaining: #{total - applied}"
+  end
+end
+RUBY
+
+    info "Appending README..."
+    cat "$HOME/.ai-toolkit/templates/jobwizard/README_APPEND.md" >> README.md
+    
+    info "Running RuboCop auto-correct..."
+    bundle exec rubocop -A || true
+    
+    info "Signing Overcommit..."
+    bundle exec overcommit --sign || true
+  })
+  
+  success "JobWizard app created: $name"
+  info "Next: cd $name && rails server"
+}
+
+sandbox_from_git() {
+  local url="$1"
+  local private_flag="${2:-}"
+  
+  need git
+  need docker
+  need gitleaks
+  
+  # Check if Docker is running
+  if ! docker info >/dev/null 2>&1; then
+    err "Docker is not running. Please start Docker Desktop and try again."
+    exit 1
+  fi
+  
+  local repo_name
+  repo_name=$(basename "$url" .git)
+  local dest_dir
+  
+  if [ "$private_flag" = "--private" ]; then
+    dest_dir=$(mktemp -d)/interview-sandbox
+    info "Using private temp directory: $dest_dir"
+  else
+    dest_dir="$HOME/Desktop/interviews/$repo_name"
+  fi
+  
+  mkdir -p "$(dirname "$dest_dir")"
+  
+  info "Cloning $url..."
+  git clone "$url" "$dest_dir"
+  cd "$dest_dir" || exit 1
+  
+  info "Setting up sandbox..."
+  cp -r "$HOME/.ai-toolkit/interview-sandbox/." .
+  
+  info "Starting Docker services..."
+  bash setup.sh
+  
+  info "Generating sandbox report..."
+  {
+    echo "=== Sandbox Report ==="
+    echo "Repository: $url"
+    echo "Date: $(date)"
+    echo "Location: $dest_dir"
+    echo ""
+    echo "=== Scan Results ==="
+    [ -f reports/brakeman.txt ] && cat reports/brakeman.txt || echo "No brakeman report"
+    [ -f reports/gitleaks.json ] && echo "Gitleaks: $(jq -r '. | length' reports/gitleaks.json) findings" || echo "No gitleaks report"
+  } > reports/sandbox_report_$(date +%Y%m%d_%H%M%S).txt
+  
+  success "Sandbox ready at: $dest_dir"
+}
+
+bootstrap_here() {
+  if ! type ai_bootstrap_repo >/dev/null 2>&1; then
+    err "ai_bootstrap_repo helper not found. Reload: source ~/.zshrc"
+    exit 1
+  fi
+  ai_bootstrap_repo
+  info "Repo bootstrapped."
+}
+
+plan_here() {
+  local title="${1:-Kickoff}"
+  if ! type ai_init_here >/dev/null 2>&1 || ! type ai_new_plan >/dev/null 2>&1; then
+    err "ai_init_here/ai_new_plan not found. Reload: source ~/.zshrc"
+    exit 1
+  fi
+  ai_init_here "$title"
+  ai_new_plan "$title"
+}
+
+scans_here() { scan_here; }
+
+dc_add() {
+  if ! type dc_add_rails_pg >/dev/null 2>&1; then
+    err "dc_add_rails_pg not found. Reload: source ~/.zshrc"
+    exit 1
+  fi
+  dc_add_rails_pg
+}
+
+ci_add() {
+  local kind="${1:-}"
+  case "$kind" in
+    github-rails)
+      info "Adding GitHub Actions Rails CI..."
+      mkdir -p .github/workflows
+      cp "$HOME/.ai-toolkit/templates/ci/github/rails.yml" .github/workflows/ci.yml
+      success "Created .github/workflows/ci.yml"
+      ;;
+    github-node)
+      info "Adding GitHub Actions Node CI..."
+      mkdir -p .github/workflows
+      cp "$HOME/.ai-toolkit/templates/ci/github/node.yml" .github/workflows/node-ci.yml
+      success "Created .github/workflows/node-ci.yml"
+      ;;
+    *)
+      err "Usage: dev ci add github-rails|github-node"
+      exit 1
+      ;;
+  esac
+}
+
+upgrade_toolkit() {
+  local brew_flag="${1:-}"
+  
+  info "Upgrading toolkit gems..."
+  echo "Before:"
+  gem list | grep -E '(rubocop|brakeman|bundler-audit|overcommit)'
+  
+  info "Updating gems..."
+  gem update rubocop rubocop-rails rubocop-rspec brakeman bundler-audit overcommit
+  
+  echo ""
+  echo "After:"
+  gem list | grep -E '(rubocop|brakeman|bundler-audit|overcommit)'
+  
+  if [ "$brew_flag" = "--brew" ]; then
+    info "Updating Homebrew packages (this may take a while)..."
+    brew update && brew upgrade
+  fi
+  
+  success "Toolkit upgraded!"
+}
+
+diagnostics() {
+  info "Running toolkit diagnostics..."
+  local has_errors=0
+  
+  echo ""
+  echo "=== Version Check ==="
+  ruby -v || { err "Ruby not found"; has_errors=1; }
+  bundler -v || { err "Bundler not found"; has_errors=1; }
+  rails -v 2>/dev/null || echo "Rails not installed (install with: gem install rails)"
+  node -v || echo "Node.js not found"
+  npm -v || echo "npm not found"
+  docker -v || echo "Docker not found"
+  git --version || { err "Git not found"; has_errors=1; }
+  
+  echo ""
+  echo "=== PATH Check ==="
+  if echo "$PATH" | grep -q "\.rbenv/shims"; then
+    success "rbenv shims in PATH"
+  else
+    err "rbenv shims not found in PATH - Ruby version management may not work correctly"
+    echo "   Add to ~/.zshrc: eval \"\$(rbenv init -)\""
+    has_errors=1
+  fi
+  
+  echo ""
+  echo "=== Required Gems Check ==="
+  for gem in brakeman bundler-audit rubocop rubocop-rails rubocop-rspec overcommit; do
+    if gem list -i "^${gem}$" >/dev/null 2>&1; then
+      success "$gem installed"
+    else
+      err "$gem not found - install with: gem install $gem"
+      has_errors=1
+    fi
+  done
+  
+  echo ""
+  echo "=== CLI Tools Check ==="
+  for tool in gitleaks jq yq fzf; do
+    if command -v "$tool" >/dev/null 2>&1; then
+      success "$tool found"
+    else
+      echo "⚠ $tool not found (optional) - install with: brew install $tool"
+    fi
+  done
+  
+  echo ""
+  echo "=== Docker Check ==="
+  if docker info >/dev/null 2>&1; then
+    success "Docker running"
+  else
+    echo "⚠ Docker not running or not installed"
+  fi
+  
+  echo ""
+  echo "=== Template Files Check ==="
+  for file in templates/rails/.rubocop.yml templates/rails/.overcommit.yml templates/rails/Justfile templates/rails/.erdconfig templates/rails/bin_setup; do
+    if [ -f "$HOME/.ai-toolkit/$file" ]; then
+      success "$file exists"
+    else
+      err "$file missing"
+      has_errors=1
+    fi
+  done
+  
+  echo ""
+  if [ $has_errors -eq 0 ]; then
+    success "All checks passed!"
+    return 0
+  else
+    err "Some checks failed - see above"
+    return 1
+  fi
+}
+
+stack_cmd() {
+  local sub="${1:-}"
+  case "$sub" in
+    up)   stack_up ;;
+    down) stack_down ;;
+    *) err "Usage: dev stack up|down"; exit 1;;
+  esac
+}
+
+quickstart_open() { open "$HOME/Desktop/Dev Quickstart" 2>/dev/null || echo "Quickstart folder not found"; }
+toolkit_open()    { open "$HOME/.ai-toolkit"; }
+
+usage() {
+cat <<'USAGE'
+dev — Alisha's AI Development Toolkit (v2.1.0)
+
+USAGE:
+  dev setup-wizard                   Interactive setup guide (recommended)
+  dev new rails <AppName>            Create Rails app (SQLite, gold template)
+  dev new rails-react <AppName>      Create Rails API + React (Vite) in client/
+  dev new jobwizard <AppName>        Create JobWizard app (job tracking + resume)
+  dev sandbox <git_url> [--private]  Interview sandbox (Docker) + initial scans
+  dev bootstrap                      Bootstrap current repo (RuboCop/ESLint/Overcommit)
+  dev plan "Title"                   Create ai/ and a first plan, then open it
+  dev scans                          Run security, lint, secret scans
+  dev dc add                         Add devcontainer to current repo
+  dev ci add github-rails            Add GitHub Actions Rails CI workflow
+  dev ci add github-node             Add GitHub Actions Node CI workflow
+  dev stack up|down                  Start PG+Redis+Mailhog (optional for production)
+  dev diag                           Run toolkit diagnostics
+  dev upgrade [--brew]               Upgrade toolkit gems (optionally brew too)
+  dev quickstart                     Open Desktop quickstart folder
+  dev toolkit                        Open ~/.ai-toolkit
+  dev help                           Show this help
+
+EXAMPLES:
+  dev new rails MyApp                # SQLite by default (simple!)
+  dev new jobwizard JobSearch        # Job tracking with SQLite
+  dev ci add github-rails            # Add Rails CI workflow
+  dev diag                           # Check your setup
+  dev stack up                       # Only needed for PostgreSQL/Redis work
+
+NOTE:
+  - Apps use SQLite by default (perfect for dev)
+  - Add PostgreSQL later for production if needed
+  - dev stack is optional (PG+Redis+Mailhog)
+
+VERSION: 2.1.0
+USAGE
+}
+
+# OSS MODE
+oss_usage() {
+  cat <<'USAGE'
+Usage: dev oss <command> [args]
+
+Commands:
+  init [owner/repo|path]   Clone/fork (if needed), set upstream, create ai/oss, harvest context.
+  harvest                  Re-run context harvest in current repo.
+  issues [owner/repo]      List open issues (top 20).
+  goodfirst [owner/repo]   List "good first issue"/"help wanted".
+  plan "title"             New OSS plan file in ai/oss/.
+  repro "issue_url|id"     Create a repro plan/test skeleton in ai/oss/.
+  fix "short-desc"         Create a fix plan scaffold in ai/oss/.
+  review                   Open latest diff for AI review using oss_review.prompt.
+  pr                       Prepare PR body from prompts + open gh PR creator.
+  sync                     Sync fork with upstream default branch.
+USAGE
+}
+
+oss_repo_arg_or_current() {
+  if [ -n "${1:-}" ]; then echo "$1"; else
+    gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo ""
+  fi
+}
+
+main() {
+  local cmd="${1:-help}"; shift || true
+  
+  # OSS commands
+  if [ "$cmd" = "oss" ]; then
+    cmd="${1:-}"; shift || true
+    case "$cmd" in
+      init)
+        target="${1:-.}"
+        if [[ "$target" =~ .+/.+ ]]; then
+          echo "Forking $target..."
+          gh repo fork "$target" --remote=true --default-branch-only || true
+          repo_dir="$(basename "$target")"
+          [ -d "$repo_dir" ] || repo_dir="$(basename "$target" .git)"
+          cd "$repo_dir"
+        else
+          cd "$target"
+        fi
+        git remote -v
+        mkdir -p ai/oss
+        "$HOME/.ai-toolkit/oss/harvest.sh" .
+        echo "Initialized OSS context at ai/oss/context.md"
+        ;;
+      harvest)
+        "$HOME/.ai-toolkit/oss/harvest.sh" .
+        ;;
+      issues)
+        repo="$(oss_repo_arg_or_current "${1:-}")"
+        [ -z "$repo" ] && { echo "No repo detected. Pass owner/repo."; exit 1; }
+        gh issue list -R "$repo" --limit 20
+        ;;
+      goodfirst)
+        repo="$(oss_repo_arg_or_current "${1:-}")"
+        [ -z "$repo" ] && { echo "No repo detected. Pass owner/repo."; exit 1; }
+        gh issue list -R "$repo" --label "good first issue,help wanted" --limit 20
+        ;;
+      plan)
+        title="${1:-OSS Task}"
+        ts="$(date +%Y%m%d-%H%M%S)"
+        slug="$(echo "$title" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g;s/^-|-$//g')"
+        file="ai/oss/PLAN-${ts}-${slug}.md"
+        cat > "$file" <<EOF
+# ${title}
+
+## Context
+(See ai/oss/context.md)
+
+## Steps
+1.
+2.
+3.
+
+## Tests
+- [ ] failing test proves bug/requirement
+- [ ] new tests pass
+
+## Done When
+- [ ] CI green, lint clean
+- [ ] small, focused PR with clear description
+EOF
+        echo "Created $file"; open "$file" 2>/dev/null || true
+        ;;
+      repro)
+        title="${1:-Repro}"
+        ts="$(date +%Y%m%d-%H%M%S)"
+        file="ai/oss/REPRO-${ts}.md"
+        printf "# Repro: %s\n\n" "$title" > "$file"
+        echo "(Paste issue details here)\n" >> "$file"
+        echo "## Steps\n1.\n2.\n3.\n" >> "$file"
+        echo "## Expected vs Actual\n- Expected:\n- Actual:\n" >> "$file"
+        echo "## Failing test sketch\n(path + snippet)\n" >> "$file"
+        echo "Created $file"; open "$file" 2>/dev/null || true
+        ;;
+      fix)
+        desc="${1:-Fix}"
+        ts="$(date +%Y%m%d-%H%M%S)"
+        file="ai/oss/FIX-${ts}.md"
+        printf "# Fix Plan: %s\n\n" "$desc" > "$file"
+        cat >> "$file" <<'EOF'
+## Approach
+- 
+
+## Impact/Risks
+- 
+
+## Tests to add/update
+- 
+
+## Notes
+- 
+EOF
+        echo "Created $file"; open "$file" 2>/dev/null || true
+        ;;
+      review)
+        echo "Open a diff in Cursor and use ai/oss/oss_review.prompt"
+        ;;
+      pr)
+        mkdir -p ai/oss
+        body="ai/oss/PR_BODY.md"
+        if [ -f ai/oss/context.md ]; then
+          echo "# PR Description\n" > "$body"
+          echo "(Use this as the PR body; edit as needed)\n" >> "$body"
+          echo "## What & Why\n\n" >> "$body"
+          echo "## How\n\n" >> "$body"
+          echo "## Tests\n\n" >> "$body"
+          echo "## Risks\n\n" >> "$body"
+          echo "## Notes\n\n" >> "$body"
+        fi
+        gh pr create --fill --body-file "$body" || true
+        ;;
+      sync)
+        upstream_default="$(git remote show upstream 2>/dev/null | rg 'HEAD branch' -N | awk '{print $NF}' || echo main)"
+        git fetch upstream "$upstream_default" || git fetch origin "$upstream_default" || true
+        git checkout "$upstream_default" || true
+        git merge "upstream/$upstream_default" || true
+        git push origin "$upstream_default" || true
+        ;;
+      ""|help|-h|--help) oss_usage ;;
+      *) echo "Unknown subcommand"; oss_usage; exit 1 ;;
+    esac
+    exit 0
+  fi
+  
+  # Regular commands
+  case "$cmd" in
+    new)
+      local kind="${1:-}"; shift || true
+      case "$kind" in
+        rails)       [ "${1:-}" ] || { err "AppName required"; exit 1; }; rails_new "$1" ;;
+        rails-react) [ "${1:-}" ] || { err "AppName required"; exit 1; }; rails_react_new "$1" ;;
+        jobwizard)   [ "${1:-}" ] || { err "AppName required"; exit 1; }; jobwizard_new "$1" ;;
+        *) err "Usage: dev new rails|rails-react|jobwizard <AppName>"; exit 1;;
+      esac
+      ;;
+    sandbox)
+      [ "${1:-}" ] || { err "git_url required"; exit 1; }
+      local url="$1"; shift || true
+      local flag="${1:-}"
+      sandbox_from_git "$url" "$flag"
+      ;;
+    preflight)
+      run_preflight
+      ;;
+    mode)
+      ai_set_mode "$@"
+      ;;
+    bootstrap)
+      run_preflight || echo "⚠️  Preflight warnings (non-blocking)"
+      bootstrap_here
+      ;;
+    plan)      plan_here "${1:-Kickoff}" ;;
+    scans)     scans_here ;;
+    dc)        [ "${1:-}" = "add" ] || { err "Usage: dev dc add"; exit 1; }; dc_add ;;
+    ci)        [ "${1:-}" ] || { err "Usage: dev ci add github-rails|github-node"; exit 1; }; ci_add "$1" ;;
+    stack)     stack_cmd "${1:-}" ;;
+    diag)      diagnostics ;;
+    upgrade)   upgrade_toolkit "${1:-}" ;;
+    quickstart) quickstart_open ;;
+    toolkit)    toolkit_open ;;
+    setup-wizard)  "$HOME/.ai-toolkit/bin/setup-wizard" ;;
+    help|--help|-h) usage ;;
+    *) usage ;;
+  esac
+}
+
+main "$@"
+

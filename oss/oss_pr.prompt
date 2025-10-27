@@ -1,0 +1,9 @@
+Write a professional PR description:
+- What & Why (user impact).
+- How (brief approach).
+- Tests (what added/changed).
+- Screenshots/logs (if UI/CLI).
+- Backwards-compat / migrations.
+- Risks / roll-back plan.
+Keep it friendly; follow repo tone from context.md. Reference the issue with "Fixes #NNN" if appropriate.
+

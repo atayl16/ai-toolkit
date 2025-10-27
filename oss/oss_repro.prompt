@@ -1,0 +1,8 @@
+Goal: REPRODUCE the reported bug without changing code.
+Produce:
+- Exact environment/version assumptions.
+- Minimal steps to reproduce.
+- A failing test (file path + spec snippet) or script.
+- Captured logs/errors.
+Do not propose a fix yet; we want a failing test first, aligned to project's test framework from context.md.
+

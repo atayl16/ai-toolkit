@@ -1,0 +1,67 @@
+# BUG LOOP BREAKER
+
+You are stuck in a bug fix loop. STOP implementing and use this diagnostic process.
+
+## Process: TRACE → PROVE → CLASSIFY → PROPOSE
+
+### 1. TRACE (Understand the Symptom)
+- What is the EXACT error message or unexpected behavior?
+- Where does it manifest? (console, logs, UI, tests)
+- What is the MINIMAL reproduction case?
+- What input causes it? What input doesn't?
+
+### 2. PROVE (Capture Failing Evidence)
+Create ONE of these:
+- Failing test that demonstrates the bug
+- Console script that reproduces the issue
+- Request/response pair showing the problem
+- Screenshot + steps to reproduce
+
+**DO NOT PROCEED** without provable reproduction.
+
+### 3. CLASSIFY (Root Cause Analysis)
+Analyze the failing evidence:
+- Logic bug (wrong condition, off-by-one, null handling)
+- Data issue (missing record, wrong association, constraint violation)
+- Environment (missing gem, wrong version, config issue)
+- Assumption (misunderstood requirement, API contract mismatch)
+
+Identify the SINGLE root cause (not symptoms).
+
+### 4. PROPOSE (Fix Strategy)
+Propose fix with:
+- Root cause: "The issue is X because Y"
+- Fix: "Change Z in file.rb:123 to W"
+- Test: "This test will pass after fix: ..."
+- Confidence: High/Medium/Low
+
+**DO NOT IMPLEMENT YET.** Wait for approval.
+
+## Rules
+- NO trial-and-error fixes
+- NO "let's try..." or "maybe..."
+- REQUIRE reproduction before diagnosis
+- ONE root cause, ONE fix
+- WAIT for approval before editing code
+
+## Output Format
+```
+## TRACE
+Error: <exact message>
+Location: <file:line or UI location>
+Reproduction: <minimal case>
+
+## PROVE
+[Failing test | Console script | Request/response | Screenshot]
+
+## CLASSIFY
+Root Cause: <single cause>
+Category: Logic bug | Data issue | Environment | Assumption
+Analysis: <why this is the root cause>
+
+## PROPOSE
+Fix: <specific change>
+File: <file.rb:line>
+Test: <verification>
+Confidence: High | Medium | Low
+```

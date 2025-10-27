@@ -1,0 +1,7 @@
+Generate a commit message that matches this repo's conventions from context.md:
+- If Conventional Commits: use correct type/scope.
+- Else match observed style from recent history.
+- Keep subject ≤ 72 chars; detailed body if needed.
+- Include "Signed-off-by: <Your Name> <your@email>" if DCO is required in context.md.
+Never mention AI. Keep it specific.
+

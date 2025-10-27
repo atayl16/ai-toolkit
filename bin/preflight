@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Preflight checks: secrets safety, gitignore, dependencies
+# Usage: dev preflight
+
+TOOLKIT_DIR="${TOOLKIT_DIR:-$HOME/.ai-toolkit}"
+
+red() { echo -e "\033[0;31m$*\033[0m"; }
+green() { echo -e "\033[0;32m$*\033[0m"; }
+yellow() { echo -e "\033[0;33m$*\033[0m"; }
+
+echo "🔍 Running preflight checks..."
+echo ""
+
+ERRORS=0
+
+# Check 1: .env is gitignored
+if [[ -f .env ]]; then
+  if git check-ignore .env &>/dev/null; then
+    green "✅ .env is gitignored"
+  else
+    red "❌ .env is NOT gitignored (security risk!)"
+    echo "   Fix: Add '.env' to .gitignore"
+    ERRORS=$((ERRORS + 1))
+  fi
+else
+  yellow "⚠️  No .env file found (OK if not using)"
+fi
+
+# Check 2: No API keys in tracked files
+if git grep -E '(ANTHROPIC_API_KEY|OPENAI_API_KEY|sk-ant-|sk-)' -- '*.rb' '*.sh' '*.yml' '*.yaml' '*.json' &>/dev/null; then
+  red "❌ Possible API keys found in tracked files!"
+  echo "   Files:"
+  git grep -l -E '(ANTHROPIC_API_KEY|OPENAI_API_KEY|sk-ant-|sk-)' -- '*.rb' '*.sh' '*.yml' '*.yaml' '*.json' || true
+  echo "   Fix: Remove keys, add to .env (gitignored)"
+  ERRORS=$((ERRORS + 1))
+else
+  green "✅ No API keys in tracked files"
+fi
+
+# Check 3: Gitleaks available
+if command -v gitleaks &>/dev/null; then
+  green "✅ Gitleaks installed"
+
+  # Run gitleaks scan
+  if gitleaks detect --no-git --quiet &>/dev/null; then
+    green "✅ Gitleaks scan passed (no secrets detected)"
+  else
+    red "❌ Gitleaks found potential secrets!"
+    echo "   Run: gitleaks detect --no-git --report-path reports/gitleaks.json"
+    echo "   Review: cat reports/gitleaks.json"
+    ERRORS=$((ERRORS + 1))
+  fi
+else
+  yellow "⚠️  Gitleaks not installed (recommended for secret scanning)"
+  echo "   Install: brew install gitleaks"
+fi
+
+# Check 4: Overcommit hooks installed
+if [[ -f .overcommit.yml ]]; then
+  if [[ -f .git/hooks/pre-commit ]] && grep -q "overcommit" .git/hooks/pre-commit 2>/dev/null; then
+    green "✅ Overcommit hooks installed"
+  else
+    yellow "⚠️  Overcommit config exists but hooks not installed"
+    echo "   Fix: bundle exec overcommit --install"
+  fi
+else
+  yellow "⚠️  No .overcommit.yml (OK if not using)"
+fi
+
+# Check 5: API keys available (if providers exist)
+if [[ -d "$TOOLKIT_DIR/providers" ]]; then
+  if [[ -n "${ANTHROPIC_API_KEY:-}" ]] || [[ -n "${OPENAI_API_KEY:-}" ]]; then
+    green "✅ API keys found in environment"
+  else
+    yellow "⚠️  No API keys found (ANTHROPIC_API_KEY, OPENAI_API_KEY)"
+    echo "   See: docs/CLAUDE_SETUP.md for setup instructions"
+  fi
+fi
+
+echo ""
+if [[ $ERRORS -eq 0 ]]; then
+  green "✅ All preflight checks passed!"
+  exit 0
+else
+  red "❌ $ERRORS preflight check(s) failed"
+  echo ""
+  echo "Fix issues above before committing."
+  exit 1
+fi

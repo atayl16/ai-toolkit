@@ -1,0 +1,27 @@
+PreCommit:
+  RuboCop:
+    enabled: true
+    required_executable: 'rubocop'
+    command: ['bundle', 'exec', 'rubocop', '--autocorrect-all', '--fail-level', 'error']
+    on_warn: pass  # Don't fail on warnings, only errors
+    exclude:
+      - 'config/**/*'
+      - 'db/schema.rb'
+      - 'db/migrate/**/*'
+  
+  RSpec:
+    enabled: false
+    description: 'Run RSpec tests'
+    command: ['bundle', 'exec', 'rspec']
+
+PrePush:
+  Brakeman:
+    enabled: true
+    required_executable: 'brakeman'
+    command: ['bundle', 'exec', 'brakeman', '-q']
+  
+  BundleAudit:
+    enabled: true
+    required_executable: 'bundler-audit'
+    command: ['bundle', 'exec', 'bundler-audit', 'check', '--update']
+

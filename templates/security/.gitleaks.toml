@@ -1,0 +1,61 @@
+# Gitleaks Configuration - Reduce False Positives
+# Place in repo root or reference with: gitleaks detect --config=path/to/.gitleaks.toml
+
+title = "AI Toolkit Gitleaks Config"
+
+[extend]
+# Use default rules but add custom allowlists
+useDefault = true
+
+[allowlist]
+description = "Allowlist for common false positives"
+
+# Common test/example patterns that aren't real secrets
+regexes = [
+  # UUIDs and similar
+  '''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}''',
+  
+  # Example/test keys
+  '''test[_-]?key''',
+  '''example[_-]?secret''',
+  '''fake[_-]?token''',
+  '''dummy[_-]?password''',
+  
+  # Development
+
+ seeds
+  '''password.*=.*"password"''',
+  
+  # Base64 encoded common strings (not secrets)
+  '''dGVzdA==''',  # "test"
+  '''ZXhhbXBsZQ==''',  # "example"
+]
+
+# Files to always ignore
+paths = [
+  '''(.*?)(jpg|gif|doc|pdf|bin|svg|socket)$''',
+  '''(go\.mod|go\.sum)$''',
+  '''.gitleaks.toml$''',
+  '''package-lock\.json$''',
+  '''yarn\.lock$''',
+  '''Gemfile\.lock$''',
+  '''\.idea/''',
+  '''\.vscode/''',
+  '''node_modules/''',
+  '''vendor/''',
+  '''coverage/''',
+  '''test/fixtures/''',
+  '''spec/fixtures/''',
+]
+
+# Specific rules to ignore
+stopwords = [
+  "testkey",
+  "exampletoken", 
+  "fakepassword",
+  "dummysecret",
+]
+
+
+
+

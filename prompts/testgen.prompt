@@ -1,0 +1,1 @@
+Generate RSpec specs for the given code. Include edge cases, invalid params, and DB constraints.

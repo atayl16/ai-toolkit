@@ -1,0 +1,72 @@
+# JobWizard Rules Configuration
+# Define what makes a job posting relevant or worth applying to
+
+filters:
+  # Required keywords (any match = flag as interesting)
+  required_keywords:
+    - "rails"
+    - "ruby on rails"
+    - "react"
+    - "full-stack"
+    - "full stack"
+    - "senior engineer"
+
+  # Disqualifying keywords (any match = skip)
+  disqualifying_keywords:
+    - "onsite only"
+    - "no remote"
+    - "must relocate"
+    - "local candidates only"
+    - "clearance required"
+    - "j2ee"
+    - ".net"
+    - "c#"
+
+  # Prefer remote positions
+  prefer_remote: true
+
+  # Min/max experience years
+  min_years_experience: 3
+  max_years_experience: 15
+
+scoring:
+  # Points system for ranking jobs
+  keyword_match: 10          # Per matched keyword
+  remote_allowed: 50         # Remote OK
+  fully_remote: 100          # Fully remote
+  tech_stack_match: 20       # Per matching tech
+  company_culture_keywords:  # Bonus points
+    - "work-life balance": 15
+    - "unlimited pto": 10
+    - "async communication": 10
+    - "distributed team": 10
+
+  penalties:
+    - "no benefits mentioned": -20
+    - "equity only": -30
+    - "unpaid trial": -100
+
+thresholds:
+  min_score_to_apply: 100    # Don't apply if score < 100
+  auto_apply_score: 200      # Auto-apply if score >= 200 (future feature)
+
+sources:
+  # Which job boards/APIs to fetch from
+  enabled:
+    - greenhouse
+    - lever
+    # - linkedin  # Future
+    # - indeed    # Future
+
+  companies:
+    # Specific companies to always check
+    - slug: "shopify"
+      name: "Shopify"
+      source: "greenhouse"
+    - slug: "github"
+      name: "GitHub"
+      source: "greenhouse"
+
+
+
+

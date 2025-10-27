@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Usage: dev mode [driver|approval|autopilot]
+# Creates per-repo AI mode configuration and planning structure
+
+TOOLKIT_DIR="${TOOLKIT_DIR:-$HOME/.ai-toolkit}"
+MODE="${1:-}"
+
+usage() {
+  cat <<EOF
+Usage: dev mode [driver|approval|autopilot]
+
+Modes:
+  driver      You write code, AI reviews and suggests
+  approval    AI plans, you approve subsets (A1, B3...)
+  autopilot   AI implements end-to-end, asks only if blocked
+
+Examples:
+  dev mode approval    # Set APPROVAL mode for this project
+  dev mode             # Show current mode
+EOF
+}
+
+show_current_mode() {
+  if [[ -f ai/mode.txt ]]; then
+    CURRENT=$(cat ai/mode.txt)
+    echo "Current mode: $CURRENT"
+    echo "To change: dev mode [driver|approval|autopilot]"
+  else
+    echo "No mode set. Run: dev mode [driver|approval|autopilot]"
+  fi
+}
+
+set_mode() {
+  local mode="$1"
+
+  # Validate mode
+  case "$mode" in
+    driver|approval|autopilot) ;;
+    *)
+      echo "Error: Invalid mode '$mode'"
+      usage
+      exit 1
+      ;;
+  esac
+
+  # Create ai/ directory structure
+  mkdir -p ai/plans ai/tracking
+
+  # Write mode
+  echo "$mode" > ai/mode.txt
+
+  # Inject mode into .cursorrules if it exists
+  if [[ -f .cursorrules ]]; then
+    # Inject mode into .cursorrules
+    sed -i.bak "s/\*\*Mode:\*\* \[INJECTED BY bin\/ai-mode\]/\*\*Mode:\*\* $mode/g" .cursorrules
+    rm .cursorrules.bak
+  fi
+
+  # Copy mode-specific prompt
+  cp "$TOOLKIT_DIR/prompts/modes/${mode}.prompt" ai/mode-${mode}.prompt
+
+  # Copy session kickoff template
+  cp "$TOOLKIT_DIR/prompts/utilities/session-kickoff.prompt" ai/session-kickoff.md
+
+  # Inject current mode into session kickoff
+  sed -i.bak "s/\[CURRENT_MODE\]/$mode/g" ai/session-kickoff.md
+  rm ai/session-kickoff.md.bak
+
+  # Create tracking template
+  cat > ai/tracking.md <<EOF
+# AI Toolkit Tracking
+
+**Mode:** $mode
+**Updated:** $(date +%Y-%m-%d)
+
+## In Progress
+- [ ] (none)
+
+## Completed
+- (none yet)
+
+## Deferred
+- (none)
+
+## Open Questions
+- (none)
+EOF
+
+  echo "✅ Mode set to: $mode"
+  echo ""
+  echo "Created:"
+  echo "  - ai/mode.txt (current mode)"
+  echo "  - ai/mode-${mode}.prompt (mode-specific prompt)"
+  echo "  - ai/session-kickoff.md (session kickoff template)"
+  echo "  - ai/tracking.md (progress tracking)"
+  echo ""
+  echo "Next: Share ai/session-kickoff.md with AI to start session"
+}
+
+# Main
+if [[ -z "$MODE" ]]; then
+  show_current_mode
+else
+  set_mode "$MODE"
+fi

@@ -1,0 +1,217 @@
+#!/usr/bin/env bash
+# AI Toolkit Setup Wizard
+# Interactive guide to configure your development environment
+
+set -e
+
+# Colors
+bold() { printf "\033[1m%s\033[0m\n" "$*"; }
+info() { printf "➜ %s\n" "$*"; }
+success() { printf "\033[32m✓ %s\033[0m\n" "$*"; }
+prompt() { printf "\033[33m? %s\033[0m " "$*"; }
+
+echo "╔═══════════════════════════════════════════════════════════════╗"
+echo "║              AI Toolkit Setup Wizard                        ║"
+echo "╚═══════════════════════════════════════════════════════════════╝"
+echo ""
+
+# Question 1: Project Type
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+bold "What type of project are you starting?"
+echo ""
+echo "  1) New Rails App                Fresh Rails 8 app with Tailwind"
+echo "  2) New Rails + React App        Full-stack app with Vite frontend"
+echo "  3) New JobWizard App            Job tracking + resume generation"
+echo "  4) Existing Project             Add toolkit to current repo"
+echo "  5) OSS Contribution             Contribute to open source"
+echo ""
+prompt "Choose (1-5)"
+read -r project_type
+
+case "$project_type" in
+  1)
+    PROJECT_TYPE="rails"
+    PROJECT_CMD="dev new rails"
+    PROJECT_DESC="Rails app with Tailwind, SQLite, RSpec, RuboCop"
+    ;;
+  2)
+    PROJECT_TYPE="rails-react"
+    PROJECT_CMD="dev new rails-react"
+    PROJECT_DESC="Rails API + React (Vite) frontend"
+    ;;
+  3)
+    PROJECT_TYPE="jobwizard"
+    PROJECT_CMD="dev new jobwizard"
+    PROJECT_DESC="Job tracking app with PDF generation"
+    ;;
+  4)
+    PROJECT_TYPE="existing"
+    PROJECT_CMD="dev bootstrap"
+    PROJECT_DESC="Add toolkit configs to existing project"
+    ;;
+  5)
+    PROJECT_TYPE="oss"
+    PROJECT_CMD="dev oss init"
+    PROJECT_DESC="Initialize OSS contribution workflow"
+    ;;
+  *)
+    echo "Invalid choice"
+    exit 1
+    ;;
+esac
+
+# Question 2: AI Role (for new projects only)
+if [ "$project_type" != "4" ] && [ "$project_type" != "5" ]; then
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  bold "What role should AI play?"
+  echo ""
+  echo "  1) Co-Driver (Recommended)     AI proposes plans, you approve"
+  echo "  2) Autopilot                   AI ships end-to-end, small commits"
+  echo "  3) Driver                       You code, AI reviews & assists"
+  echo ""
+  prompt "Choose (1-3)"
+  read -r ai_role
+  
+  case "$ai_role" in
+    1)
+      AI_MODE="co-driver"
+      AI_DESC="Plan-first with approvals"
+      ;;
+    2)
+      AI_MODE="autopilot"
+      AI_DESC="Full implementation mode"
+      ;;
+    3)
+      AI_MODE="driver"
+      AI_DESC="Review & assist mode"
+      ;;
+    *)
+      AI_MODE="co-driver"
+      AI_DESC="Plan-first with approvals (default)"
+      ;;
+  esac
+fi
+
+# Question 3: Tier 2 Gems (for Rails apps only)
+if [ "$project_type" = "1" ] || [ "$project_type" = "2" ]; then
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  bold "Include performance & debugging tools?"
+  echo ""
+  echo "  These are optional (can add later):"
+  echo "  - bullet (N+1 detection)"
+  echo "  - rack-mini-profiler (performance)"
+  echo "  - annotate (model docs)"
+  echo "  - simplecov (test coverage)"
+  echo ""
+  prompt "Include Tier 2 gems? (y/n)"
+  read -r include_tier2
+  
+  if [ "$include_tier2" = "y" ]; then
+    TIER2="yes"
+  else
+    TIER2="no"
+  fi
+fi
+
+# Summary
+echo ""
+echo "╔═══════════════════════════════════════════════════════════════╗"
+echo "║                      Setup Summary                          ║"
+echo "╚═══════════════════════════════════════════════════════════════╝"
+echo ""
+info "Project Type: $PROJECT_DESC"
+if [ -n "${AI_MODE:-}" ]; then
+  info "AI Mode: $AI_DESC"
+fi
+if [ -n "${TIER2:-}" ]; then
+  info "Tier 2 Gems: $TIER2"
+fi
+echo ""
+
+# Get project name
+if [ "$project_type" != "4" ] && [ "$project_type" != "5" ]; then
+  prompt "Project name"
+  read -r project_name
+  
+  if [ -z "$project_name" ]; then
+    echo "Project name required"
+    exit 1
+  fi
+fi
+
+# Execute setup
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+bold "Setting up project..."
+echo ""
+
+case "$project_type" in
+  1|2|3)
+    # Create new project
+    $PROJECT_CMD "$project_name"
+    
+    # Set AI mode
+    if [ -n "${AI_MODE:-}" ]; then
+      cd "$project_name"
+      echo "$AI_MODE" > ai/mode.txt
+      echo "  ✓ AI mode set to: $AI_MODE"
+      cd ..
+    fi
+    
+    # Handle Tier 2 gems
+    if [ "$project_type" = "1" ] || [ "$project_type" = "2" ]; then
+      if [ "$TIER2" = "yes" ]; then
+        cd "$project_name"
+        cat >> Gemfile <<'GEMS'
+
+# TIER 2: Performance & Debugging (optional)
+gem_group :development, :test do
+  gem 'bullet'
+  gem 'rack-mini-profiler'
+  gem 'annotate'
+  gem 'database_cleaner-active_record'
+  gem 'simplecov', require: false
+end
+gem_group :development do
+  gem 'rails-erd', require: false
+end
+GEMS
+        bundle install
+        echo "  ✓ Tier 2 gems installed"
+        cd ..
+      fi
+    fi
+    
+    success "Project created: $project_name"
+    ;;
+  4)
+    # Bootstrap existing project
+    info "Running: $PROJECT_CMD"
+    $PROJECT_CMD
+    success "Toolkit added to current project"
+    ;;
+  5)
+    # OSS setup
+    prompt "Repository (owner/repo)"
+    read -r repo_name
+    $PROJECT_CMD "$repo_name"
+    success "OSS context initialized"
+    ;;
+esac
+
+echo ""
+echo "╔═══════════════════════════════════════════════════════════════╗"
+echo "║                  ✅ Setup Complete!                         ║"
+echo "╚═══════════════════════════════════════════════════════════════╝"
+echo ""
+
+if [ "$project_type" != "4" ] && [ "$project_type" != "5" ]; then
+  echo "Next steps:"
+  echo "  cd $project_name"
+  echo "  just test  # Run tests"
+  echo "  dev scans  # Security checks"
+  echo ""
+fi
+

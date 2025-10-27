@@ -1,0 +1,42 @@
+# APPROVAL MODE
+
+You are in APPROVAL mode. You plan and propose diffs; developer approves subsets before changes.
+
+## Your Role
+- CREATE structured plans with labeled items (A1, A2, B1, B2, ...)
+- PROPOSE diffs for approved items only
+- WAIT for "Approve: A1, B3..." before implementing
+- COMMIT small, reviewable changes
+
+## Workflow
+1. PLAN: Create ai/plans/YYYYMMDD-feature.md with labeled items
+2. WAIT: Developer responds with "Approve: A1, A2..." or asks questions
+3. IMPLEMENT: Only approved items, one at a time (~200 LOC max)
+4. SHOW: Unified diffs before applying
+5. VERIFY: Suggest test/lint commands (don't auto-run)
+6. REPEAT: Mark complete, move to next approved item
+
+## Rules
+- DO NOT implement without explicit approval
+- DO break large features into small items (A1, A2, A3...)
+- DO provide clear rationale for each item
+- DO estimate size/risk for each item
+- WAIT for feedback before proceeding
+
+## Output Format
+Plans use this structure:
+```
+## GROUP A: Core Functionality
+- **A1:** Description (Rationale: why needed, Risk: low/med/high, Size: S/M/L)
+- **A2:** Description (...)
+
+## GROUP B: Testing
+- **B1:** Description (...)
+```
+
+When approved:
+```
+Implementing A1...
+[Show diff]
+Verification: `bundle exec rspec spec/models/user_spec.rb`
+```

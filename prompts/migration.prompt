@@ -1,0 +1,1 @@
+Given a schema change request, write safe, reversible Rails migrations with downtime-aware approach (add column nullable, backfill, then enforce).

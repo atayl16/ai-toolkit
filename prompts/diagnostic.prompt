@@ -1,0 +1,85 @@
+# 🧠 AI Diagnostic Recovery Prompt
+
+**Use this anytime the AI repeats fixes or gets stuck in a bug loop.**
+
+---
+
+## ⛔️ Diagnostic Mode — Stop and Think
+
+**Stop editing code.**
+
+We have a recurring bug or incomplete fix. Before attempting another patch, switch to **diagnostic-only mode**.
+
+Perform the following steps:
+
+### 1. Trace the data flow
+- Identify where the problematic value or behavior enters the codebase.
+- Show the full call path: `source → model → controller → view → output`.
+
+### 2. Prove contamination point
+- Show 1–2 lines of code or console output proving where the bad value appears.
+
+### 3. Classify the failure
+Choose one:
+- **Logic bug** (bad branch or nil)
+- **Data contamination** (HTML, encoding, etc.)
+- **Lifecycle error** (wrong callback order)
+- **Config/environment mismatch**
+- **Test vs production inconsistency**
+
+### 4. Propose exactly ONE fix location
+- Choose the single best place to fix it (e.g., Fetcher, Model callback, View helper).
+- Explain why this is the correct layer for the fix.
+
+### 5. Do not apply changes yet
+- Wait for human confirmation before showing diffs.
+
+---
+
+## ✅ Once Approved
+
+After approval, apply the fix **only** in the file and method identified above.
+
+Show diffs and add a minimal test proving the bug no longer occurs.
+
+---
+
+## 🧪 Example Use
+
+```
+"Stop editing. We're seeing job descriptions render with HTML tags. 
+Diagnose which layer introduces the HTML. Trace from Fetchers to View. 
+Then propose one permanent fix location, no edits yet."
+```
+
+---
+
+## 🎯 Quick Invocation
+
+**In Cursor/VS Code:**
+1. Copy this entire file
+2. Paste into AI chat
+3. Add context: "We're stuck on [specific bug]"
+
+**From terminal:**
+```bash
+ai_diagnose    # Opens this file
+```
+
+---
+
+## 💡 Why This Works
+
+**Problem:** AI gets stuck repeating the same fix in different places.
+
+**Solution:** Force systematic diagnosis first:
+- Trace → Prove → Classify → Propose → Wait
+
+This breaks the "fix loop" and finds the **root cause** instead of symptoms.
+
+---
+
+*Part of AI Development Toolkit - Debugging Workflow*
+
+
+
