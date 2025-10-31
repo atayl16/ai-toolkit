@@ -12,15 +12,7 @@ All notable changes to the AI Development Toolkit.
   - Checks CLI tools: gitleaks, jq, yq, fzf
   - Verifies template files exist
   - Exit codes for CI/automation
-  
-- **JobWizard Scaffolder** (`dev new jobwizard`)
-  - Complete job tracking + resume builder app
-  - Pre-configured models: JobPosting, JobSource
-  - Service stubs for Greenhouse and Lever APIs
-  - Truth policy: never fabricate experience
-  - Config templates: profile.yml, experience.yml, rules.yml
-  - Rake tasks for job fetching
-  
+
 - **GitHub Actions CI Templates**
   - `dev ci add github-rails` - Rails CI workflow
   - `dev ci add github-node` - Node.js CI workflow

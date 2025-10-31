@@ -5,7 +5,7 @@
 _dev() {
   local -a commands
   commands=(
-    'new:Create new Rails, Rails+React, or JobWizard app'
+    'new:Create new Rails or Rails+React app'
     'sandbox:Clone repo into Docker sandbox for interview'
     'bootstrap:Add AI configs to current project'
     'plan:Create AI planning structure and plan doc'
@@ -24,7 +24,6 @@ _dev() {
   new_types=(
     'rails:Rails app with PostgreSQL and Tailwind'
     'rails-react:Rails API + React (Vite) full-stack app'
-    'jobwizard:JobWizard app (job tracking + resume builder)'
   )
 
   local -a stack_cmds

@@ -75,7 +75,7 @@
 .ai-toolkit/
 ├── bin/                # CLI commands
 ├── prompts/            # AI prompts (modes + utilities)
-├── templates/          # Rails/React/JobWizard configs
+├── templates/          # Rails/React configs
 ├── ai/                 # System prompts (charter, constraints)
 ├── providers/          # API wrappers (Anthropic, OpenAI)
 ├── docs/               # Documentation

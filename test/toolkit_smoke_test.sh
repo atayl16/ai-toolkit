@@ -19,7 +19,7 @@ cleanup() {
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo "Cleanup: Removing test apps..."
   cd "$TEST_DIR"
-  rm -rf TestRails TestReact TestJobWizard
+  rm -rf TestRails TestReact
   echo "✓ Cleanup complete"
 }
 
@@ -27,7 +27,7 @@ cleanup() {
 trap cleanup EXIT
 
 # Cleanup old tests
-rm -rf TestRails TestReact TestJobWizard
+rm -rf TestRails TestReact
 
 # Function to test app startup
 test_app_startup() {
@@ -68,14 +68,6 @@ echo "Test 2: Rails + React App"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 dev new rails-react TestReact
 test_app_startup "TestReact" "Rails + React App"
-echo ""
-
-# Test 3: JobWizard app
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Test 3: JobWizard App"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-dev new jobwizard TestJobWizard
-test_app_startup "TestJobWizard" "JobWizard App"
 echo ""
 
 # Summary

@@ -43,8 +43,7 @@ for file in \
   templates/react/.prettierrc \
   templates/security/.gitleaks.toml \
   templates/ci/github/rails.yml \
-  templates/ci/github/node.yml \
-  templates/jobwizard/config/profile.yml; do
+  templates/ci/github/node.yml; do
   if [ -f "$HOME/.ai-toolkit/$file" ]; then
     echo "✓ $file exists"
   else
@@ -92,7 +91,7 @@ echo ""
 echo "All checks passed! Your toolkit v2.1.0 is ready to use."
 echo ""
 echo "Try these next:"
-echo "  dev new jobwizard MyJobWizard"
+echo "  dev new rails MyApp"
 echo "  dev ci add github-rails"
 echo "  dev upgrade --brew"
 

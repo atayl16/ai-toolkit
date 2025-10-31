@@ -33,12 +33,6 @@ cd MyApp
 dev mode approval
 ```
 
-**JobWizard (job tracking):**
-```bash
-dev new jobwizard MyJobApp
-cd MyJobApp
-```
-
 ---
 
 ## 🤖 I want to use AI assistance

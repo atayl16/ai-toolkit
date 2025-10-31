@@ -21,11 +21,10 @@ bold "What type of project are you starting?"
 echo ""
 echo "  1) New Rails App                Fresh Rails 8 app with Tailwind"
 echo "  2) New Rails + React App        Full-stack app with Vite frontend"
-echo "  3) New JobWizard App            Job tracking + resume generation"
-echo "  4) Existing Project             Add toolkit to current repo"
-echo "  5) OSS Contribution             Contribute to open source"
+echo "  3) Existing Project             Add toolkit to current repo"
+echo "  4) OSS Contribution             Contribute to open source"
 echo ""
-prompt "Choose (1-5)"
+prompt "Choose (1-4)"
 read -r project_type
 
 case "$project_type" in
@@ -40,16 +39,11 @@ case "$project_type" in
     PROJECT_DESC="Rails API + React (Vite) frontend"
     ;;
   3)
-    PROJECT_TYPE="jobwizard"
-    PROJECT_CMD="dev new jobwizard"
-    PROJECT_DESC="Job tracking app with PDF generation"
-    ;;
-  4)
     PROJECT_TYPE="existing"
     PROJECT_CMD="dev bootstrap"
     PROJECT_DESC="Add toolkit configs to existing project"
     ;;
-  5)
+  4)
     PROJECT_TYPE="oss"
     PROJECT_CMD="dev oss init"
     PROJECT_DESC="Initialize OSS contribution workflow"
@@ -61,7 +55,7 @@ case "$project_type" in
 esac
 
 # Question 2: AI Role (for new projects only)
-if [ "$project_type" != "4" ] && [ "$project_type" != "5" ]; then
+if [ "$project_type" != "3" ] && [ "$project_type" != "4" ]; then
   echo ""
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   bold "What role should AI play?"
@@ -131,7 +125,7 @@ fi
 echo ""
 
 # Get project name
-if [ "$project_type" != "4" ] && [ "$project_type" != "5" ]; then
+if [ "$project_type" != "3" ] && [ "$project_type" != "4" ]; then
   prompt "Project name"
   read -r project_name
   
@@ -148,10 +142,10 @@ bold "Setting up project..."
 echo ""
 
 case "$project_type" in
-  1|2|3)
+  1|2)
     # Create new project
     $PROJECT_CMD "$project_name"
-    
+
     # Set AI mode
     if [ -n "${AI_MODE:-}" ]; then
       cd "$project_name"
@@ -159,7 +153,7 @@ case "$project_type" in
       echo "  ✓ AI mode set to: $AI_MODE"
       cd ..
     fi
-    
+
     # Handle Tier 2 gems
     if [ "$project_type" = "1" ] || [ "$project_type" = "2" ]; then
       if [ "$TIER2" = "yes" ]; then
@@ -186,13 +180,13 @@ GEMS
     
     success "Project created: $project_name"
     ;;
-  4)
+  3)
     # Bootstrap existing project
     info "Running: $PROJECT_CMD"
     $PROJECT_CMD
     success "Toolkit added to current project"
     ;;
-  5)
+  4)
     # OSS setup
     prompt "Repository (owner/repo)"
     read -r repo_name
@@ -207,7 +201,7 @@ echo "║                  ✅ Setup Complete!                         ║"
 echo "╚═══════════════════════════════════════════════════════════════╝"
 echo ""
 
-if [ "$project_type" != "4" ] && [ "$project_type" != "5" ]; then
+if [ "$project_type" != "3" ] && [ "$project_type" != "4" ]; then
   echo "Next steps:"
   echo "  cd $project_name"
   echo "  just test  # Run tests"

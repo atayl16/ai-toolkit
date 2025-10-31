@@ -70,22 +70,7 @@ npm test
 cd ..
 ```
 
-#### 5. Test JobWizard
-```bash
-cd ~/Desktop/test
-rm -rf JobWizTest
-
-dev new jobwizard JobWizTest
-cd JobWizTest
-
-# Verify structure
-ls config/job_wizard/
-ls app/services/fetchers/
-bundle exec rubocop
-just test
-```
-
-#### 6. Test Sandbox
+#### 5. Test Sandbox
 ```bash
 dev sandbox https://github.com/rails/rails --private
 # Should create temp directory and run scans

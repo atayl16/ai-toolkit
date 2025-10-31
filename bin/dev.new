@@ -79,105 +79,6 @@ end
   info "Frontend: cd $name/client && npm run dev (port 5173)"
 }
 
-jobwizard_new() {
-  local name="$1"
-  info "Creating JobWizard app: $name"
-  
-  # Start with standard Rails app
-  rails_new "$name"
-  
-  (cd "$name" && {
-    info "Adding JobWizard gems..."
-    bundle add prawn httpx nokogiri
-    
-    info "Creating JobWizard structure..."
-    mkdir -p config/job_wizard
-    cp "$HOME/.ai-toolkit/templates/jobwizard/config/profile.yml" config/job_wizard/
-    cp "$HOME/.ai-toolkit/templates/jobwizard/config/experience.yml" config/job_wizard/
-    cp "$HOME/.ai-toolkit/templates/jobwizard/config/rules.yml" config/job_wizard/
-    
-    info "Generating models..."
-    rails g model JobPosting ext_id:string:index company:string title:string location:string \
-      remote:boolean url:string posted_at:datetime source:string description:text \
-      flags:jsonb recently_applied:boolean score:integer
-    
-    rails g model JobSource kind:string company:string slug:string active:boolean
-    
-    info "Running migrations..."
-    bin/rails db:migrate
-    
-    info "Creating service stubs..."
-    mkdir -p app/services/fetchers app/services/job_wizard
-    cat > app/services/fetchers/greenhouse.rb <<'RUBY'
-# Fetcher for Greenhouse job boards
-# TODO: Implement fetch logic
-class Fetchers::Greenhouse
-  def initialize(company_slug)
-    @company_slug = company_slug
-  end
-
-  def fetch_jobs
-    # TODO: Fetch from https://boards-api.greenhouse.io/v1/boards/#{@company_slug}/jobs
-    []
-  end
-end
-RUBY
-
-    cat > app/services/fetchers/lever.rb <<'RUBY'
-# Fetcher for Lever job boards  
-# TODO: Implement fetch logic
-class Fetchers::Lever
-  def initialize(company_slug)
-    @company_slug = company_slug
-  end
-
-  def fetch_jobs
-    # TODO: Fetch from https://api.lever.co/v0/postings/#{@company_slug}
-    []
-  end
-end
-RUBY
-
-    info "Creating rake tasks..."
-    cat > lib/tasks/jobs.rake <<'RUBY'
-namespace :jobs do
-  desc "Fetch jobs from provider (greenhouse|lever) for company slug"
-  task :fetch, [:provider, :slug] => :environment do |t, args|
-    provider = args[:provider]
-    slug = args[:slug]
-    
-    puts "Fetching jobs from #{provider}/#{slug}..."
-    # TODO: Implement fetching logic
-    puts "Done!"
-  end
-
-  desc "Show job board dashboard"
-  task board: :environment do
-    puts "JobWizard Dashboard"
-    puts "=" * 50
-    total = JobPosting.count
-    applied = JobPosting.where(recently_applied: true).count
-    puts "Total jobs: #{total}"
-    puts "Applied: #{applied}"
-    puts "Remaining: #{total - applied}"
-  end
-end
-RUBY
-
-    info "Appending README..."
-    cat "$HOME/.ai-toolkit/templates/jobwizard/README_APPEND.md" >> README.md
-    
-    info "Running RuboCop auto-correct..."
-    bundle exec rubocop -A || true
-    
-    info "Signing Overcommit..."
-    bundle exec overcommit --sign || true
-  })
-  
-  success "JobWizard app created: $name"
-  info "Next: cd $name && rails server"
-}
-
 sandbox_from_git() {
   local url="$1"
   local private_flag="${2:-}"
@@ -396,7 +297,6 @@ dev — Alisha's AI Development Toolkit (v2.1.0)
 USAGE:
   dev new rails <AppName>            Create Rails app (gold template)
   dev new rails-react <AppName>      Create Rails API + React (Vite) in client/
-  dev new jobwizard <AppName>        Create JobWizard app (job tracking + resume)
   dev sandbox <git_url> [--private]  Interview sandbox (Docker) + initial scans
   dev bootstrap                      Bootstrap current repo (RuboCop/ESLint/Overcommit)
   dev plan "Title"                   Create ai/ and a first plan, then open it
@@ -413,7 +313,6 @@ USAGE:
 
 EXAMPLES:
   dev new rails MyApp                # Create standard Rails app
-  dev new jobwizard JobSearch        # Create job tracking app
   dev ci add github-rails            # Add Rails CI workflow
   dev diag                           # Check your setup
   dev upgrade --brew                 # Update everything
@@ -430,8 +329,7 @@ main() {
       case "$kind" in
         rails)       [ "${1:-}" ] || { err "AppName required"; exit 1; }; rails_new "$1" ;;
         rails-react) [ "${1:-}" ] || { err "AppName required"; exit 1; }; rails_react_new "$1" ;;
-        jobwizard)   [ "${1:-}" ] || { err "AppName required"; exit 1; }; jobwizard_new "$1" ;;
-        *) err "Usage: dev new rails|rails-react|jobwizard <AppName>"; exit 1;;
+        *) err "Usage: dev new rails|rails-react <AppName>"; exit 1;;
       esac
       ;;
     sandbox)
